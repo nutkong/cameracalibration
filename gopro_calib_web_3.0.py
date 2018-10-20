@@ -7,14 +7,22 @@
 #A video must first be taken of a chessboard pattern moved to a variety of positions
 #in the field of view with a GoPro.
 
-import cv2, sys, os
+import cv2, sys, os, fnmatch
 import numpy as np
+
+#dirname
+dirname = 'output'
+footage_dir = '/home/nutkong/Documents/underwater_footage'
 
 #Import Information
 #filename = '3D_R0210.MP4'
+#filename = '3D_R0211.MP4'
+filename = '3D_R0213.MP4'
+#filename = '3D_R0219.MP4'
 #filename = '3D_L4939.MP4'
 #filename = '3D_L4940.MP4'
-filename = '3D_L4942.MP4'
+#filename = '3D_L4942.MP4'
+
 #filename = 'calib_wide_checkerboard1_5x.mp4'
 #filename = 'test_cameracalibration_checkerboard.mp4'
 #Input the number of board images to use for calibration (recommended: ~20) it will be automatically set anyway
@@ -35,7 +43,7 @@ board_h = 6
 #Board dimensions (typically in cm)
 board_dim = 25
 #Image resolution
-image_size = (1920, 1080)
+image_size = (1920*2/3, 1080*2/3)
 #image_size = (1280, 1024)
 #image_size = (640, 360)
 
@@ -44,7 +52,8 @@ image_size = (1920, 1080)
 # A value of 1 will leave in all the pixels.  This maybe useful if there is some important information
 # at the corners.  Ideally, you will have to tweak this to see what works for you.
 #crop = 0.5
-crop = 1
+#crop = 1
+crop = 0
 
 
 
@@ -103,7 +112,7 @@ def ImageCollect(filename):
         height = video.get(cv2.CAP_PROP_FRAME_HEIGHT)
         size = (int(width), int(height))
         total_frames = video.get(cv2.CAP_PROP_FRAME_COUNT)
-        print('total frame camera: ' , total_frames)
+        print('total frame camera: ' , total_frames, ' size: ', width, ' ', height)
         n_boards = int(total_frames/n_capture_period)
 
         #Initializes the frame counter and collected_image counter
@@ -115,7 +124,7 @@ def ImageCollect(filename):
             success, image = video.read()
             current_frame = video.get(cv2.CAP_PROP_POS_FRAMES)
             cv2.imshow('Video', image)
-
+            image = cv2.resize(image,(int(width*2/3), int(height*2/3)), interpolation=cv2.INTER_LINEAR)
 
             if current_frame % n_capture_period == 0 :
               collected_images += 1
@@ -171,6 +180,8 @@ def ImageProcessing(board_w, board_h, board_dim):
     board_n = board_w * board_h
     opts = []
     ipts = []
+    n_boards = len(fnmatch.filter(os.listdir('.'),'*.png'))
+    print('Total files in footage dir : ',footage_dir , n_boards)
     npts = np.zeros((n_boards, 1), np.int32)
     intrinsic_matrix = np.zeros((3, 3), np.float32)
     distCoeffs = np.zeros((5, 1), np.float32)
@@ -180,6 +191,8 @@ def ImageProcessing(board_w, board_h, board_dim):
     # like (0,0,0), (25,0,0), (50,0,0) ....,(200,125,0)
     objp = np.zeros((board_h*board_w,3), np.float32)
     objp[:,:2] = np.mgrid[0:(board_w*board_dim):board_dim,0:(board_h*board_dim):board_dim].T.reshape(-1,2)
+
+
 
     #Loop through the images.  Find checkerboard corners and save the data to ipts.
     for i in range(1, n_boards + 1):
@@ -253,23 +266,28 @@ def ImageProcessing(board_w, board_h, board_dim):
     #Scale the images and create a rectification map.
     newCamMat, ROI = cv2.getOptimalNewCameraMatrix(intrinsic_matrix, distCoeff, image_size, alpha = crop, centerPrincipalPoint = 1)
     mapx, mapy = cv2.initUndistortRectifyMap(intrinsic_matrix, distCoeff, None, newCamMat, image_size, m1type = cv2.CV_32FC1)
+    
+    n_undistort_img = len(fnmatch.filter(os.listdir(footage_dir),'*.png'))
+    print('Total files in footage dir : ',footage_dir , n_boards)
 
    # for i in range(1, n_boards + 1):
    #     print 'Loading... Calibration_Image' + str(i) + '.png'
    #     image = cv2.imread('Calibration_Image' + str(i) + '.png')
     for i in range(1, n_undistort_img +1):
         print 'Loading...' + '{0:05d}'.format(i)
-        image = cv2.imread('/home/nutkong/Documents/images2/' + '{0:05d}'.format(i) + '.png')
+        image = cv2.imread(os.path.join(footage_dir,'{0:05d}'.format(i) + '.png'))
 
         # undistort
         #dst = cv2.remap(image, mapx, mapy, cv2.INTER_LINEAR)
         dst = cv2.undistort(image, intrinsic_matrix, distCoeff, None, newCamMat)
 
-        cv2.imshow('Undisorted Image',dst)
+        #cv2.imshow('Undisorted Image',dst)
 
 
         #dst = cv2.resize(dst, (0,0), fx=0.5, fy=0.5)
-        cv2.imwrite('{0:05d}'.format(i)+'.png', dst)
+        #os.chdir(dirname)
+        cv2.imwrite(os.path.join(dirname, '{0:05d}'.format(i)+'.png'),dst)
+        #cv2.imwrite('{0:05d}'.format(i)+'.png', dst)
         #char = cv2.waitKey(0)
 
     cv2.destroyAllWindows()
@@ -282,11 +300,10 @@ print("calibration images.")
 print(" ")
 print('We will collect ' + str(n_boards) + ' calibration images.')
 
-#ImageCollect(filename)
-
-print(' ')
-print('All the calibration images are collected. total:' +  str(n_boards))
-print('------------------------------------------------------------------------')
+ImageCollect(filename) 
+print(' ') 
+print('All the calibration images are collected. total:' +  str(n_boards)) 
+print('------------------------------------------------------------------------') 
 print('Step 2: Calibration')
 print('We will analyze the images take and calibrate the camera.')
 print('Press the esc button to close the image windows as they appear.')
