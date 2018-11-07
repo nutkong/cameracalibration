@@ -243,6 +243,18 @@ def ImageProcessing(board_w, board_h, board_dim):
     #Save matrices
     print('Intrinsic Matrix: ')
     print(str(intrinsic_matrix))
+    fx = intrinsic_matrix[0][0]
+    fy = intrinsic_matrix[1][1]
+    cx = intrinsic_matrix[0][2]
+    cy = intrinsic_matrix[1][2]
+    print(fx, fy ,cx, cy)
+    print("---- writing calibration file------ ")
+    calibrationFile = open("calib_export.txt","w")
+    calibrationFile.write("Pinhole " + str(fx) + " " + str(fy) + " " + str(cx) + " " + str(cy) + " 0\n" )
+    calibrationFile.write(str(image_size[0]) + " " + str(image_size[1])+ "\n")
+    calibrationFile.write("crop\n")
+    calibrationFile.write(str(image_size[0]) + " " + str(image_size[1]))
+    calibrationFile.close()
     print(' ')
     print('Distortion Coefficients: ')
     print(str(distCoeff))
@@ -266,7 +278,7 @@ def ImageProcessing(board_w, board_h, board_dim):
     #Scale the images and create a rectification map.
     newCamMat, ROI = cv2.getOptimalNewCameraMatrix(intrinsic_matrix, distCoeff, image_size, alpha = crop, centerPrincipalPoint = 1)
     mapx, mapy = cv2.initUndistortRectifyMap(intrinsic_matrix, distCoeff, None, newCamMat, image_size, m1type = cv2.CV_32FC1)
-    
+
     n_undistort_img = len(fnmatch.filter(os.listdir(footage_dir),'*.png'))
     print('Total files in footage dir : ',footage_dir , n_boards)
 
@@ -300,10 +312,11 @@ print("calibration images.")
 print(" ")
 print('We will collect ' + str(n_boards) + ' calibration images.')
 
-ImageCollect(filename) 
-print(' ') 
-print('All the calibration images are collected. total:' +  str(n_boards)) 
-print('------------------------------------------------------------------------') 
+ImageCollect(filename)
+
+print(' ')
+print('All the calibration images are collected. total:' +  str(n_boards))
+print('------------------------------------------------------------------------')
 print('Step 2: Calibration')
 print('We will analyze the images take and calibrate the camera.')
 print('Press the esc button to close the image windows as they appear.')
